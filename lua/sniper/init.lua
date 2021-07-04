@@ -51,44 +51,35 @@ function M.snippet_get_cursor(snippet)
 end
 
 function M.sniper()
-    local _snippets = {
-	fn = {
-	    "function #()",
-	    "    @",
-	    "end"
-	},
-	fnr = {
-	    "function #()",
-	    "    return #@",
-	    "end"
-	},
-	fna = {
-	    "function #(@)",
-	    "end"
-	},
-	_for = {
-	    "for #, # in pairs(#) do",
-	    "    @",
-	    "end"
-	},
-	perr = {
-	    "print(\"e: @\")"
-	}
-    }
+    local file_ext = vim.fn.expand("%:e")
+    local sniper_folder = vim.g.sniper_folder
 
-    local line = vim.fn.getline(".")
-    local line_table = Util.split_white_space(line)
-    local snippet = nil
-
-    if _snippets[line_table[1]] then
-	snippet = _snippets[line_table[1]]
-    else
+    if sniper_folder == nil then
+	print("e: missing g:sniper_folder variable")
 	return nil
     end
 
+    local line = vim.fn.getline(".")
+    local line_table = Util.split_white_space(line)
+
+    if line_table[1] == nil then
+	print("e: empty line")
+	return nil
+    end
+
+    local snippet_path = string.format("%s/%s/%s.%s",
+	sniper_folder, file_ext, line_table[1], file_ext)
+
+    if vim.fn.filereadable(snippet_path) == 0 then
+	print(string.format("e: snippet not found at \"%s\"", snippet_path))
+	return nil
+    end
+
+    local snippet = vim.fn.readfile(snippet_path)
+
     local args = {}
     for i = 2, #line_table do
-	table.insert(args, line_table[i])
+        table.insert(args, line_table[i])
     end
 
     Util.str_table_replace(snippet, "#", args)
@@ -98,10 +89,8 @@ function M.sniper()
 
     Util.str_table_replace(snippet, "@", "")
 
-    table.insert(snippet, "")
-
-    vim.cmd("delete")
-    vim.paste(snippet, 1)
+    vim.api.nvim_put(snippet, "l", true, false)
+    vim.cmd(string.format("%sdelete", curpos[2]))
 
     if snpcurpos == nil then
         vim.fn.cursor(curpos[2], curpos[3])
