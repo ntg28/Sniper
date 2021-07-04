@@ -1,8 +1,15 @@
 -- [[ sniper ]] --
 
-local M = {}
+-- [[ sniper Utils ]] --
+local Util = {}
 
-function M.split(str, sp)
+function Util.str_table_replace(table, from, to)
+    for i, v in pairs(table) do
+	table[i] = v:gsub(from, to)
+    end
+end
+
+function Util.split(str, sp)
     local result = {}
     for subs in str:gmatch(sp) do
 	table.insert(result, subs)
@@ -10,39 +17,69 @@ function M.split(str, sp)
     return result
 end
 
-function M.split_white_space(str)
-    return M.split(str, "%S+")
+function Util.split_white_space(str)
+    return Util.split(str, "%S+")
 end
 
-function M.split_new_line(str)
-    return M.split(str, "%C+")
-end
+-- [[ sniper Module ]] --
+local M = {}
 
-function M.paste(str, fmt)
-    if (fmt) then
-	str = string.format(str, unpack(fmt))
+function M.snippet_get_cursor(snippet)
+    local pos = {}
+    local found = nil
+    for i, v in pairs(snippet) do
+	found = v:find("@")
+	if found then
+	    pos.y = i
+	    pos.x = found
+	    return pos
+	end
     end
-    local value = M.split_new_line(str)
-    table.insert(value, "")
-    vim.paste(value, 1)
-end
-
-function M.move(y, x)
-    local curpos = vim.fn.getcurpos()
-    vim.fn.cursor(curpos[2]+y, curpos[3]+x)
+    return nil
 end
 
 function M.sniper()
-    local curline = vim.api.nvim_get_current_line()
-    local scurline = M.split_white_space(curline)
-    if (scurline[1] == "fn") then
-	vim.cmd("delete")
-	M.paste([[
-	function %s()
-	    
-	end
-	]], {scurline[2]})
-	M.move(-2, 80)
+    local _snippets = {
+	fn = {
+	    "function @()",
+	    "end"
+	},
+	fna = {
+	    "function ...(@)",
+	    "end"
+	},
+	foor = {
+	    "for k, v in pairs(@) do",
+	    "end"
+	},
+	perr = {
+	    "print(\"e: @\")"
+	}
+    }
+
+    local line = vim.fn.getline(".")
+    local line_table = Util.split_white_space(line)
+    local snippet = nil
+
+    if _snippets[line_table[1]] then
+	snippet = _snippets[line_table[1]]
+    else
+	return nil
+    end
+
+    local curpos = vim.fn.getcurpos()
+    local snpcurpos = M.snippet_get_cursor(snippet)
+
+    Util.str_table_replace(snippet, "@", "")
+    table.insert(snippet, "")
+
+    vim.cmd("delete")
+    vim.paste(snippet, 1)
+
+    if snpcurpos == nil then
+        vim.fn.cursor(curpos[2], curpos[3])
+    else
+        vim.fn.cursor(curpos[2]+snpcurpos.y-1, snpcurpos.x)
     end
 end
 

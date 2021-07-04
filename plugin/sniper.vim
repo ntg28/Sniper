@@ -9,4 +9,5 @@ lua << EOF
 EOF
 endfunction
 
+nnoremap <leader>vs :call Sniper()<cr>
 inoremap <C-j> <cmd>:call Sniper()<cr>
