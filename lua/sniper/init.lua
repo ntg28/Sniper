@@ -4,6 +4,18 @@
 local Util = {}
 
 function Util.str_table_replace(table, from, to)
+    if type(to) == "table" then
+	for _, v_arg in pairs(to) do
+	    for line, v_line in pairs(table) do
+		table[line], replaced = v_line:gsub(from, v_arg, 1)
+		if replaced > 0 then
+		    break
+		end
+	    end
+	end
+	return
+    end
+
     for i, v in pairs(table) do
 	table[i] = v:gsub(from, to)
     end
@@ -41,15 +53,22 @@ end
 function M.sniper()
     local _snippets = {
 	fn = {
-	    "function @()",
+	    "function #()",
+	    "    @",
+	    "end"
+	},
+	fnr = {
+	    "function #()",
+	    "    return #@",
 	    "end"
 	},
 	fna = {
-	    "function ...(@)",
+	    "function #(@)",
 	    "end"
 	},
-	foor = {
-	    "for k, v in pairs(@) do",
+	_for = {
+	    "for #, # in pairs(#) do",
+	    "    @",
 	    "end"
 	},
 	perr = {
@@ -67,10 +86,18 @@ function M.sniper()
 	return nil
     end
 
+    local args = {}
+    for i = 2, #line_table do
+	table.insert(args, line_table[i])
+    end
+
+    Util.str_table_replace(snippet, "#", args)
+
     local curpos = vim.fn.getcurpos()
     local snpcurpos = M.snippet_get_cursor(snippet)
 
     Util.str_table_replace(snippet, "@", "")
+
     table.insert(snippet, "")
 
     vim.cmd("delete")
