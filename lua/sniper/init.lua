@@ -1,6 +1,6 @@
 -- [[ sniper ]] --
 
--- [[ sniper Utils ]] --
+-- [[ sniper Util ]] --
 local Util = {}
 
 function Util.str_table_replace(table, from, to)
@@ -31,6 +31,24 @@ end
 
 function Util.split_white_space(str)
     return Util.split(str, "%S+")
+end
+
+function map(table, fn)
+    local t = {}
+    for k, v in pairs(table) do
+	t[k] = fn(v)
+    end
+    return t
+end
+
+function indent(table, size)
+    return map(table, function(s)
+	return string.rep(" ", size) .. s
+    end)
+end
+
+function goto_begin_of_line()
+    vim.cmd("normal ^")
 end
 
 -- [[ sniper Module ]] --
@@ -84,7 +102,11 @@ function M.sniper()
 
     Util.str_table_replace(snippet, "#", args)
 
+    goto_begin_of_line()
+
     local curpos = vim.fn.getcurpos()
+    snippet = indent(snippet, curpos[5] - 1)
+
     local snpcurpos = M.snippet_get_cursor(snippet)
 
     Util.str_table_replace(snippet, "@", "")
