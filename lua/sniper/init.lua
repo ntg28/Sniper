@@ -1,27 +1,6 @@
--- [[ sniper ]] --
+local Snippet = require("sniper.snippet")
 
--- [[ sniper Util ]] --
-local Util = {}
-
-function Util.str_table_replace(table, from, to)
-    if type(to) == "table" then
-	for _, v_arg in pairs(to) do
-	    for line, v_line in pairs(table) do
-		table[line], replaced = v_line:gsub(from, v_arg, 1)
-		if replaced > 0 then
-		    break
-		end
-	    end
-	end
-	return
-    end
-
-    for i, v in pairs(table) do
-	table[i] = v:gsub(from, to)
-    end
-end
-
-function Util.split(str, sp)
+function split(str, sp)
     local result = {}
     for subs in str:gmatch(sp) do
 	table.insert(result, subs)
@@ -29,96 +8,67 @@ function Util.split(str, sp)
     return result
 end
 
-function Util.split_white_space(str)
-    return Util.split(str, "%S+")
-end
-
-function map(table, fn)
-    local t = {}
-    for k, v in pairs(table) do
-	t[k] = fn(v)
-    end
-    return t
-end
-
-function indent(table, size)
-    return map(table, function(s)
-	return string.rep(" ", size) .. s
-    end)
+function split_white_space(str)
+    return split(str, "%S+")
 end
 
 function goto_begin_of_line()
     vim.cmd("normal ^")
 end
 
--- [[ sniper Module ]] --
-local M = {}
-
-function M.snippet_get_cursor(snippet)
-    local pos = {}
-    local found = nil
-    for i, v in pairs(snippet) do
-	found = v:find("@")
-	if found then
-	    pos.y = i
-	    pos.x = found
-	    return pos
-	end
-    end
-    return nil
+function parse_line(line)
+    local t = split_white_space(vim.fn.getline(line))
+    return {
+	name = t[1],
+	args = {unpack(t, 2)}
+    }
 end
 
-function M.sniper()
-    local file_ext = vim.fn.expand("%:e")
-    local sniper_folder = vim.g.sniper_folder
+function paste(list)
+    vim.api.nvim_put(list, "l", true, false)
+end
 
-    if sniper_folder == nil then
-	print("e: missing g:sniper_folder variable")
+function delete(line)
+    vim.cmd(string.format("%sdelete", line))
+end
+
+function sniper()
+    if vim.g.sniper_folder == nil then
+	print("ERROR: missing g:sniper_folder variable")
 	return nil
     end
 
-    local line = vim.fn.getline(".")
-    local line_table = Util.split_white_space(line)
+    local sn_info = parse_line(".")
 
-    if line_table[1] == nil then
-	print("e: empty line")
+    if sn_info.name == nil then
+	print("ERROR: empty line")
 	return nil
     end
 
-    local snippet_path = string.format("%s/%s/%s.%s",
-	sniper_folder, file_ext, line_table[1], file_ext)
+    local sn = Snippet:new(sn_info.name)
 
-    if vim.fn.filereadable(snippet_path) == 0 then
-	print(string.format("e: snippet not found at \"%s\"", snippet_path))
+    if sn.snippet == nil then
+	print("ERROR: snippet not found at " .. sn.path)
 	return nil
     end
-
-    local snippet = vim.fn.readfile(snippet_path)
-
-    local args = {}
-    for i = 2, #line_table do
-        table.insert(args, line_table[i])
-    end
-
-    Util.str_table_replace(snippet, "#", args)
 
     goto_begin_of_line()
 
     local curpos = vim.fn.getcurpos()
-    snippet = indent(snippet, curpos[5] - 1)
 
-    local snpcurpos = M.snippet_get_cursor(snippet)
+    sn:set_args(sn_info.args)
+    sn:indent(curpos[5] - 1)
+    sn:set_cursor_pos()
+    sn:rem_cursor_chr()
 
-    Util.str_table_replace(snippet, "@", "")
+    paste(sn.snippet)
+    delete(curpos[2])
 
-    vim.api.nvim_put(snippet, "l", true, false)
-    vim.cmd(string.format("%sdelete", curpos[2]))
-
-    if snpcurpos == nil then
-        vim.fn.cursor(curpos[2], curpos[3])
+    if sn.cursor_pos then
+        vim.fn.cursor(curpos[2]+sn.cursor_pos.y-1, sn.cursor_pos.x)
     else
-        vim.fn.cursor(curpos[2]+snpcurpos.y-1, snpcurpos.x)
+        vim.fn.cursor(curpos[2], curpos[3])
     end
 end
 
-return M
+return { sniper = sniper }
