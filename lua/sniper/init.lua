@@ -65,9 +65,9 @@ function sniper()
     delete(curpos[2])
 
     if sn.cursor_pos then
-        vim.fn.cursor(curpos[2]+sn.cursor_pos.y-1, sn.cursor_pos.x)
+	vim.fn.cursor(curpos[2]+sn.cursor_pos.y-1, sn.cursor_pos.x)
     else
-        vim.fn.cursor(curpos[2], curpos[3])
+	vim.fn.cursor(curpos[2], curpos[3])
     end
 end
 
